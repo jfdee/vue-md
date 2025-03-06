@@ -1,7 +1,12 @@
 <template>
   <div class="main">
-    <div ref="display" class="main__input" style="border: 1px solid black" />
-    <textarea ref="input" v-model="value" class="main__input" />
+    <div ref="display" class="main__input" style="border: 1px solid black; overflow-y: scroll" />
+    <textarea
+      ref="input"
+      v-model="value"
+      class="main__input"
+      :style="`background-color: ${showWarning ? '#c41e3a' : 'inherit'} `"
+    />
   </div>
 </template>
 
@@ -12,10 +17,14 @@
       return {
         value: '',
         htmlValue: '',
+
         key17: false, // ctrl
         key66: false, // b
         key73: false, // i
-        handleKeys: [17, 66, 73]
+        handleKeys: [17, 66, 73],
+
+        showWarning: false,
+        ignoreValueWatch: false,
       }
     },
     computed: {
@@ -28,10 +37,15 @@
     },
     watch: {
       value() {
+        if (this.ignoreValueWatch) return
         this.setHtmlValue()
       },
       htmlValue(val) {
         this.displayElement.innerHTML = val
+      },
+      showWarning(val) {
+        if (!val) return
+        setTimeout(() => {this.showWarning = false}, 1000)
       },
       key66(pressed) {
         if (!pressed) return
@@ -61,10 +75,16 @@
         if (e.keyCode === 73) this.key73 = pressed
       },
       setHtmlValue() {
-        let html = this.value.replaceAll('\n', '<br>')
+        const safetyValue = this.getWithoutTags(this.value)
+        let html = safetyValue.replaceAll('\n', '<br>')
         html = this.getHtmlValue(html, '**', 'strong')
         html = this.getHtmlValue(html, '*', 'em')
         this.htmlValue = html
+
+        // remove tags from orig string
+        this.ignoreValueWatch = true
+        this.value = safetyValue
+        this.ignoreValueWatch = false
       },
       getMarkdownValue(to) {
         const value = this.value
@@ -103,7 +123,6 @@
         const openTag = '<' + to + '>'
         const closeTag = '</' + to + '>'
         const parts = value.split(from)
-        console.log(parts)
         if (parts.length === 1) return value // 1.
         if (parts.length === 2) return value // 7.
 
@@ -157,6 +176,17 @@
 
         return start + middle + end
       },
+      getWithoutTags(value) {
+        /*
+          * 'asd <img src="x" onerror="alert(1)" /> asd' -> 'asd  asd'
+        */
+        const pattern = '\<[^]+>'
+        const tags = value.match(pattern)
+        if (!tags) return value
+        this.showWarning = true
+        tags.forEach(item => value = value.replace(item, ''))
+        return value
+      },
     },
   }
 </script>
@@ -164,15 +194,16 @@
 <style scoped>
   .main {
     width: 600px;
-    height: 600px;
-    margin: 10% auto;
+    height: 428px;
+    margin: 2% 2%;
     box-shadow: 1px 1px 1px 1px gray;
     padding-top: 1px;
   }
   .main__input {
     margin: 25px;
     width: 542px;
-    height: 200px;
+    height: 150px;
+    padding: 6px;
   }
   .main > textarea {
     overflow: auto;
